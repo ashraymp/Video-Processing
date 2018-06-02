@@ -1,0 +1,69 @@
+#include "opencv2/opencv.hpp"
+#include <iostream>
+//#include <opencv\highgui.h>
+using namespace std;
+using namespace cv;
+
+
+
+int main() {
+
+	// Create a VideoCapture object and open the input file
+	// If the input is the web camera, pass 0 instead of the video file name
+
+	//VideoCapture cap("C:\\opencv\\sources\\samples\\data\\vtest.avi");
+	VideoCapture cap(0);//webcam
+
+	// Check if camera opened successfully
+	if (!cap.isOpened()) {
+		cout << "Error opening video stream or file" << endl;
+		return -1;
+	}
+	VideoWriter write;//wite object
+	//VideoWriter();
+	string filename = "C:\\Users\\mpash\\out.avi";
+
+	int fps = 5;
+
+	int fcc = CV_FOURCC('D', 'I', 'V', '3');
+
+	Size framesize(cap.get(CV_CAP_PROP_FRAME_WIDTH), cap.get(CV_CAP_PROP_FRAME_HEIGHT));
+	write = VideoWriter(filename, fcc, fps, framesize);
+	if (!write.isOpened()) {
+		cout << "unable to open write file";
+		getchar();
+		return 0;
+	}
+
+	while (1) {
+
+		Mat frame;
+		// Capture frame-by-frame
+		//cap >> frame;
+		bool success = cap.read(frame);
+		// If the frame is empty, break immediately
+		if (!success)
+			break;
+		write.write(frame);
+		// Display the resulting frame
+		imshow("Frame", frame);
+
+
+		// Press  ESC on keyboard to exit
+		switch (waitKey(25)) {
+		case 27:return 0;
+
+		//case 115:break;
+
+		//case 114:break;
+		}
+	}
+		// When everything done, release the video capture object
+		cap.release();
+
+		// Closes all the frames
+		destroyAllWindows();
+
+		return 0;
+	
+}
