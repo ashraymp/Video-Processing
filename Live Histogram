@@ -1,0 +1,105 @@
+#include "opencv2/opencv.hpp"
+#include <iostream>
+#include <opencv\highgui.h>
+using namespace std;
+using namespace cv;
+int freq[256], maxval = 0;
+Mat histogram(256,256,CV_8UC1);
+
+
+void reset()
+{
+	for (int i = 0; i < 256; i++)
+	{
+		freq[i] = 0;
+		for (int j = 0; j < 256; j++)
+		{
+			histogram.at<uchar>(i, j) = 0;
+		}
+	}
+}
+
+void plot() {
+	int r = 255;
+	for (int i = 0; i < 256; i++)
+	{
+		//freq[i] = 0;
+		for (int j = 0; j < 256; j++)
+		{
+			histogram.at<uchar>(i,j) = 0;
+		}
+	}
+	for (int j = 0; j < 256; j++)
+	{
+
+		freq[j] =((float)freq[j] / maxval) * 255;
+		//cout << freq[j] << endl;
+		for (int k = 0; k < freq[j]; k++)
+		{
+
+			if (r < 0)
+				break;
+
+			histogram.at<uchar>(r--, j) = 255;
+			//cout << r << ' ' << c << endl;
+		}
+		r = 255;
+
+	}
+	
+
+	imwrite("C:\\Users\\mpash\\Pictures\\IVP Ex1\\hgram.jpg", histogram);
+	imshow("Live", histogram);
+	maxval = 0;
+	//waitKey(0);
+}
+Mat togray(Mat &frame)
+{
+	int avg = 0;
+	Mat demo(frame.rows, frame.cols, CV_8UC1);
+
+	for (int i = 0; i < frame.rows; i++)
+	{
+		for (int j = 0; j < frame.cols; j++)
+		{
+			int avg = (frame.at<Vec3b>(i, j)[0] + frame.at<Vec3b>(i, j)[1] + frame.at<Vec3b>(i, j)[2]) / 3;
+			demo.at<uchar>(i, j) = avg;
+			if (maxval < avg)
+				maxval = avg;
+			if(i<256&& j<256)
+			//histogram.at<uchar>(i, j) = 0;//initialization
+			//freq[avg] = 0;
+			freq[avg]++;//freq calc
+
+		}
+
+	}
+	//imshow("Histogram", histogram);
+	return demo;
+
+}
+int main()
+{
+	VideoCapture cap("C:\\Users\\mpash\\Pictures\\IVP Ex1\\sample.mp4");
+	if (!cap.isOpened()) {
+		cout << "Error opening video stream or file" << endl;
+		return -1;
+	}
+	Mat frame,demo;
+	while (1) {
+	//	Mat frame;
+		reset();
+		cap >> frame;
+		demo=togray(frame);
+		imshow("Original Video",frame);
+		imshow("BnW",demo);
+		plot();
+		
+		
+		char ch=(char)waitKey(25);
+		if (ch == 27)
+			break;
+
+	}
+	//waitKey(25);
+}
