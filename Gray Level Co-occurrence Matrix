@@ -1,0 +1,178 @@
+#include "opencv2\imgproc\imgproc.hpp"
+#include  <opencv2\highgui\highgui.hpp>
+#include "opencv2\core.hpp"
+#include <iostream>
+#include <fstream>
+using namespace std;
+using namespace cv;
+
+float energy = 0, entropy = 0, contrast = 0, idm = 0, dm = 0;
+float max_ener = 0, max_entropy = 0, max_contrast = 0, max_idm = 0, max_dm = 0;
+float min_ener = 0, min_entropy = 0, min_contrast = 0, min_idm = 0, min_dm = 0;
+vector<float> fetchMax()
+{
+	vector<float>out;
+	out.push_back(max_ener); out.push_back(max_entropy); out.push_back(max_contrast); out.push_back(max_idm); out.push_back(max_dm);
+	return out;
+}
+vector<float> fetchMin()
+{
+	vector<float>out;
+	out.push_back(min_ener); out.push_back(min_entropy); out.push_back(min_contrast); out.push_back(min_idm); out.push_back(min_dm);
+	return out;
+}
+vector<float> feature(int (&wind)[8][8])        //Feature Computation for 8x8 Matrix
+{
+	
+	vector<float> result;                          //Vector that stores 5 feature Values
+	//result.clear();
+	energy = 0; entropy = 0; idm = 0; dm = 0; contrast = 0;
+	for (int i = 0; i < 8; i++)
+	{
+		for (int j = 0; j < 8; j++)
+		{
+			energy += pow(wind[i][j],2);
+			//cout << entropy << endl;
+			contrast += (pow(i - j, 2)* wind[i][j]);
+			idm += (wind[i][j] / (1 + pow(i - j, 2)));
+			dm += (wind[i][j] * abs(i - j));
+			if (wind[i][j] == 0)
+				continue;
+			entropy += (wind[i][j] * -1 * (float)log(wind[i][j]));
+			//wind[i][j] = 0;
+		}
+	}
+	//cout<<max_entropy
+	//cout << contrast << endl;
+	if(energy > max_ener)
+		max_ener = energy;
+	if (entropy > max_entropy)
+		max_entropy = entropy;
+	if (contrast > max_contrast)
+		max_contrast = contrast;
+	if (idm > max_idm)
+		max_idm = idm;
+	if (dm > max_dm)
+		max_dm = dm;
+
+	if (energy < min_ener)
+		min_ener = energy;
+	if (entropy < min_entropy)
+		min_entropy = entropy;
+	if (contrast < min_contrast)
+		min_contrast = contrast;
+	if (idm < min_idm)
+		min_idm = idm;
+	if (dm < min_dm)
+		min_dm = dm;
+
+
+
+	//cout << energy << " " << entropy << " " << contrast << " " << idm << " " << dm << endl;
+	energy = sqrt(energy);                        
+	result.push_back(energy);                                   //Pushing Values to Vector
+	result.push_back(entropy);
+	result.push_back(contrast);
+	result.push_back(idm);
+	result.push_back(dm);
+	
+
+	return result;
+}
+
+
+
+int main()
+{
+    Mat image = imread("C:\\Users\\mpash\\Pictures\\IVP Ex1\\Cluster_input\\7.jpg", 0);
+  	imshow("Original", image);
+		Mat energy(image.rows, image.cols, CV_8UC1);        //Energy Image
+		Mat entropy(image.rows, image.cols, CV_8UC1);       //Entropy Image
+		Mat contrast(image.rows, image.cols, CV_8UC1);      //Contrast Image
+		Mat idm(image.rows, image.cols, CV_8UC1);           //Inverse Difference Moment
+		Mat dm(image.rows, image.cols, CV_8UC1);            //Directional Moment
+		int w = 4, qLevel = 3, max = 0;                     //w is window size and q is quantization level
+		vector<float>result;
+		
+		int quant = pow(2, 8 - 3); int com[8][8];
+		for (int i = 0; i < image.rows; i++)
+		{
+			for (int j = 0; j < image.cols; j++)
+			{
+				if (i < 8 && j < 8)
+				{ //com is short for Co-Occurrence Matrix
+					com[i][j] = 0;							            //initializing Cooccurrence Matrix
+				}
+        int temp = (int)image.at<uchar>(i, j);		//Quantizing image
+				temp = (temp / quant);					        	//Quantizing image
+															
+				image.at<uchar>(i, j) = temp;				      //Quantizing image
+
+			}
+		}
+		ofstream op("C:\\Users\\mpash\\Pictures\\IVP Ex1\\Cluster_input\\hr.txt", ios::out);
+		for (int i = 0; i < image.rows - w; i++)
+		{
+			for (int j = 0; j < image.cols - w; j++)
+			{
+				for (int x = i; x < (i + w); x++)				// WxW window in scope to calculate cooccurence matrix
+				{
+					for (int y = j; y < (j + w) - 1; y++)
+					{
+						com[(int)image.at<uchar>(x, y)][(int)image.at<uchar>(x, y + 1)]++;      //Count number of occurence of gray level pair(x,y)
+
+					}
+				}
+				//break;
+				result = feature(com);
+				for (int x = 0; x < 8; x++)				//clearing window
+				{
+					for (int y = 0; y < 8; y++)
+					{
+						com[x][y] = 0;
+
+					}
+				}
+				energy.at<uchar>(i, j) = result[0];
+				entropy.at<uchar>(i, j) = result[1];
+				contrast.at<uchar>(i, j) = result[2];
+				idm.at<uchar>(i, j) = result[3];
+				dm.at<uchar>(i, j) = result[4];
+
+			}
+			//break;
+		}
+		vector<float> maxval, minval;
+		maxval = fetchMax();
+		minval = fetchMin();
+
+    //To stretch the computed image to new graylevel range of [0-255]
+		for (int i = 0; i < energy.rows; i++)
+		{
+			for (int j = 0; j < energy.cols; j++)
+			{
+				energy.at<uchar>(i, j) = (int)(255 * (((int)energy.at<uchar>(i, j) - minval[0]) / (maxval[0] - minval[0])));
+				entropy.at<uchar>(i, j) = (int)(255 * (((int)entropy.at<uchar>(i, j) - minval[1]) / (maxval[1] - minval[1])));
+				contrast.at<uchar>(i, j) = (int)(255 * (((int)contrast.at<uchar>(i, j) - minval[2]) / (maxval[2] - minval[2])));
+				idm.at<uchar>(i, j) = (int)(255 * (((int)idm.at<uchar>(i, j) - minval[3]) / (maxval[3] - minval[3])));
+				dm.at<uchar>(i, j) = (int)(255 * (((int)dm.at<uchar>(i, j) - minval[4]) / (maxval[4] - minval[4])));
+			}
+		}
+
+
+		imshow("Energy", energy);//energy
+		imshow("Entropy", entropy);//entropy
+		imshow("Contrast", contrast);//contrast
+		imshow("Inverse Difference Moment", idm);//idm
+		imshow("Directional Moment", dm);//dm
+		char ch = (char)waitKey(0);
+		if (ch == 27)
+		{                       //clearing vectors
+			result.clear();
+			maxval.clear();
+			minval.clear();
+			return 0;
+		}
+
+	
+}
